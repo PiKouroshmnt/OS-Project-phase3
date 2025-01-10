@@ -31,6 +31,9 @@ int report(struct report_traps*);
 int create_thread(void* (*func)(void *), void *arg);
 int join_thread(int tid);
 int stop_thread(int tid);
+int cpu_usage(void);
+int top(struct top*);
+int set_cpu_quota(int pid, int quota);
 // ulib.c
 int stat(const char*, struct stat*);
 char* strcpy(char*, const char*);

@@ -25,3 +25,6 @@
 #define SYS_create_thread 24
 #define SYS_join_thread 25
 #define SYS_stop_thread 26
+#define SYS_cpu_usage 27
+#define SYS_top 28
+#define SYS_set_cpu_quota 29

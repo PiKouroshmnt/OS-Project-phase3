@@ -14,6 +14,8 @@ struct report;
 struct global_data;
 struct report_traps;
 struct thread;
+struct top;
+struct cpu_usage;
 
 // bio.c
 void            binit(void);

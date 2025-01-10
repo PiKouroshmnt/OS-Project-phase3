@@ -160,3 +160,24 @@ sys_stop_thread(void)
     intr_on();
     return ans;
 }
+
+uint64
+sys_cpu_usage(void)
+{
+    // body
+    return 0;
+}
+
+uint64
+sys_top(void)
+{
+    // body
+    return 0;
+}
+
+uint64
+sys_set_cpu_quota(void)
+{
+    // body
+    return 0;
+}
