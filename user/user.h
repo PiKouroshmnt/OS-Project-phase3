@@ -3,6 +3,7 @@
 struct stat;
 struct child_processes;
 struct report_traps;
+struct top;
 
 // system calls
 int fork(void);

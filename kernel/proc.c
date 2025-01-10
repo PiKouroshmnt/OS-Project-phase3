@@ -53,6 +53,8 @@ procinit(void)
   initlock(&wait_lock, "wait_lock");
   for(p = proc; p < &proc[NPROC]; p++) {
       initlock(&p->lock, "proc");
+      p->usage.sum_of_ticks = 0;
+      p->usage.quota = 0;
       p->state = UNUSED;
       p->current_thread = 0;
       p->last_scheduled_index = 0;
@@ -174,6 +176,8 @@ freeproc(struct proc *p)
   p->killed = 0;
   p->xstate = 0;
   p->current_thread = 0;
+  p->usage.sum_of_ticks = 0;
+  p->usage.quota = 0;
   for(int i = 0;i < MAX_THREAD;i++) {
       p->threads[i].state = THREAD_FREE;
   }
@@ -388,6 +392,8 @@ exit(int status)
 
   p->xstate = status;
   p->state = ZOMBIE;
+  p->usage.sum_of_ticks = 0;
+  p->usage.quota = 0;
   if(p->current_thread)
     p->current_thread->state = THREAD_JOINED;
 
@@ -502,7 +508,7 @@ scheduler(void)
             //this is debug only serves no purpose
             //printf("\n");
         }
-
+        p->usage.start_tick = ticks;
         swtch(&c->context, &p->context);
 
         if(p->current_thread && p->current_thread->state == THREAD_RUNNABLE){
@@ -555,6 +561,9 @@ sched(void)
     panic("sched running");
   if(intr_get())
     panic("sched interruptible");
+
+  uint elapsed = ticks - p->usage.start_tick;
+  p->usage.sum_of_ticks += elapsed;
 
   intena = mycpu()->intena;
   swtch(&p->context, &mycpu()->context);
