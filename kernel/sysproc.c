@@ -95,6 +95,7 @@ sys_uptime(void)
 uint64
 child_processes(void)
 {
+    intr_off();
     struct child_processes* children;
     struct child_processes kchildren;
     argaddr(0, (uint64 *)&children);
@@ -106,6 +107,7 @@ child_processes(void)
     find_children(&kchildren,p);
 
     copyout(p->pagetable,(uint64)children,(char *)&kchildren,sizeof(kchildren));
+    intr_off();
     return 0;
 }
 
@@ -164,8 +166,8 @@ sys_stop_thread(void)
 uint64
 sys_cpu_usage(void)
 {
-    // body
-    return 0;
+    struct proc* p = myproc();
+    return p->usage.sum_of_ticks;
 }
 
 uint64
