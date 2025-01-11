@@ -180,6 +180,10 @@ sys_top(void)
 uint64
 sys_set_cpu_quota(void)
 {
-    // body
-    return 0;
+    int pid,quota;
+
+    argint(0,&pid);
+    argint(1,&quota);
+    
+    return set_quota(pid,quota);
 }
