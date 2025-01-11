@@ -88,8 +88,6 @@ usertrap(void)
   } else if((which_dev = devintr()) != 0){
     // ok
   } else {
-      printf("thread: %d\tepc: %lu\ta0: %lu\tsp: %lu\tra: %lu\n",p->current_thread->id,p->current_thread->trapframe->epc,p->current_thread->trapframe->a0,p->current_thread->trapframe->sp,p->current_thread->trapframe->ra);
-      printf("process: %d\tepc: %lu\ta0: %lu\tsp: %lu\tra: %lu\n",p->pid,p->trapframe->epc,p->trapframe->a0,p->trapframe->sp,p->trapframe->ra);
     printf("usertrap(): unexpected scause 0x%lx pid=%d\n", r_scause(), p->pid);
     printf("            sepc=0x%lx stval=0x%lx\n", r_sepc(), r_stval());
     setkilled(p);

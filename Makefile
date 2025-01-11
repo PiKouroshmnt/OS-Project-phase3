@@ -142,6 +142,7 @@ UPROGS=\
 	$U/_testChp\
 	$U/_testRpt\
 	$U/_testThrd\
+	$U/_testSchd\
 
 fs.img: mkfs/mkfs README $(UPROGS)
 	mkfs/mkfs fs.img README $(UPROGS)

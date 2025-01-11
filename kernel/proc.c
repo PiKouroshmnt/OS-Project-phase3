@@ -53,6 +53,8 @@ procinit(void)
   initlock(&wait_lock, "wait_lock");
   for(p = proc; p < &proc[NPROC]; p++) {
       initlock(&p->lock, "proc");
+      p->usage.sum_of_ticks = 0;
+      p->usage.quota = 0;
       p->state = UNUSED;
       p->current_thread = 0;
       p->last_scheduled_index = 0;
@@ -174,6 +176,8 @@ freeproc(struct proc *p)
   p->killed = 0;
   p->xstate = 0;
   p->current_thread = 0;
+  p->usage.sum_of_ticks = 0;
+  p->usage.quota = 0;
   for(int i = 0;i < MAX_THREAD;i++) {
       p->threads[i].state = THREAD_FREE;
   }
@@ -388,6 +392,8 @@ exit(int status)
 
   p->xstate = status;
   p->state = ZOMBIE;
+  p->usage.sum_of_ticks = 0;
+  p->usage.quota = 0;
   if(p->current_thread)
     p->current_thread->state = THREAD_JOINED;
 
@@ -447,6 +453,31 @@ wait(uint64 addr)
   }
 }
 
+uint minimumUsage(){
+    struct proc *p = proc;
+    uint min = -1;
+    while(p < &proc[NPROC]){
+        if(p->state == RUNNABLE && (p->usage.quota == 0 || p->usage.sum_of_ticks < p->usage.quota)){
+            if(min == -1 || p->usage.sum_of_ticks < min){
+                min = p->usage.sum_of_ticks;
+            }
+        }
+        p++;
+    }
+    if(min == -1){
+        p = proc;
+        while(p < &proc[NPROC]){
+            if(p->state == RUNNABLE){
+                if(min == -1 || p->usage.sum_of_ticks < min){
+                    min = p->usage.sum_of_ticks;
+                }
+            }
+            p++;
+        }
+    }
+    return min;
+}
+
 // Per-CPU process scheduler.
 // Each CPU calls scheduler() after setting itself up.
 // Scheduler never returns.  It loops, doing:
@@ -460,6 +491,7 @@ scheduler(void)
   struct proc *p;
   struct thread *t = 0;
   int flag = 0;
+  int minFound = 0;
   struct cpu *c = mycpu();
 
   c->proc = 0;
@@ -472,58 +504,64 @@ scheduler(void)
     int found = 0;
     for(p = proc; p < &proc[NPROC]; p++) {
       acquire(&p->lock);
-      if(p->state == RUNNABLE) {
-        // Switch to chosen process.  It is the process's job
-        // to release its lock and then reacquire it
-        // before jumping back to us.
-        p->state = RUNNING;
-        c->proc = p;
+      uint min = minimumUsage();
+      if(p->state == RUNNABLE && p->usage.sum_of_ticks == min) {
+          // Switch to chosen process.  It is the process's job
+          // to release its lock and then reacquire it
+          // before jumping back to us.
+          p->state = RUNNING;
+          c->proc = p;
 
-        //if process has created threads...
-        if(p->current_thread != 0) {
-            for(int i = 0; i < MAX_THREAD;i++) {
-                //find first ready/runnable thread
-                int index = (p->last_scheduled_index + 1 + i) % MAX_THREAD;
-                t = &p->threads[index];
-                if (t->state == THREAD_RUNNABLE && t->join == 0) {
-                    p->current_thread = t;
-                    p->last_scheduled_index = index;
-                    break;
-                }
-            }
-            if(t && t->state == THREAD_RUNNABLE) {
-                t->state = THREAD_RUNNING;
-            }else {
-                panic("this shouldn't happen but just in case");
-            }
+          //if process has created threads...
+          if(p->current_thread != 0) {
+              for(int i = 0; i < MAX_THREAD;i++) {
+                  //find first ready/runnable thread
+                  int index = (p->last_scheduled_index + 1 + i) % MAX_THREAD;
+                  t = &p->threads[index];
+                  if (t->state == THREAD_RUNNABLE && t->join == 0) {
+                      p->current_thread = t;
+                      p->last_scheduled_index = index;
+                      break;
+                  }
+              }
+              if(t && t->state == THREAD_RUNNABLE) {
+                  t->state = THREAD_RUNNING;
+              }else {
+                  panic("this shouldn't happen but just in case");
+              }
 
-            memmove(p->trapframe,t->trapframe,sizeof (struct trapframe));
+              memmove(p->trapframe,t->trapframe,sizeof (struct trapframe));
 
-            //this is debug only serves no purpose
-            //printf("\n");
-        }
+              //this is debug only serves no purpose
+              //printf("\n");
+          }
+          p->usage.start_tick = ticks;
+          swtch(&c->context, &p->context);
 
-        swtch(&c->context, &p->context);
+          if(p->current_thread && p->current_thread->state == THREAD_RUNNABLE){
+              t = 0;
+              memmove(p->current_thread->trapframe,p->trapframe,sizeof (struct trapframe));
 
-        if(p->current_thread && p->current_thread->state == THREAD_RUNNABLE){
-            t = 0;
-            memmove(p->current_thread->trapframe,p->trapframe,sizeof (struct trapframe));
+          }
+          if(p->state == TEXIT) {
+              flag = 1;
+              p->state = RUNNABLE;
+          }
 
-        }
-        if(p->state == TEXIT) {
-            flag = 1;
-            p->state = RUNNABLE;
-        }
-
-        // Process is done running for now.
-        // It should have changed its p->state before coming back.
-        c->proc = 0;
-        found = 1;
+          // Process is done running for now.
+          // It should have changed its p->state before coming back.
+          c->proc = 0;
+          found = 1;
+          minFound = 1;
       }
       release(&p->lock);
       if(flag) {
           p--;
           flag = 0;
+      }
+      if(minFound){
+          minFound = 0;
+          p = proc;
       }
     }
     if(found == 0) {
@@ -546,7 +584,6 @@ sched(void)
 {
   int intena;
   struct proc *p = myproc();
-
   if(!holding(&p->lock))
     panic("sched p->lock");
   if(mycpu()->noff != 1)
@@ -555,6 +592,9 @@ sched(void)
     panic("sched running");
   if(intr_get())
     panic("sched interruptible");
+
+  uint elapsed = ticks - p->usage.start_tick;
+  p->usage.sum_of_ticks += elapsed;
 
   intena = mycpu()->intena;
   swtch(&p->context, &mycpu()->context);
