@@ -120,6 +120,7 @@ void            thread_exit(void);
 int             thread_create(void* (*func)(void *) , void *arg);
 int             thread_join(int tid);
 int             thread_stop(int tid);
+int             set_quota(int pid,int quota);
 
 // swtch.S
 void            swtch(struct context*, struct context*);

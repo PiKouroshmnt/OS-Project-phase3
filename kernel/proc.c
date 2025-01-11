@@ -1016,3 +1016,31 @@ thread_stop(int tid){
     thread_exit();
     return 0;
 }
+
+int set_quota(int pid,int quota){
+    struct proc *p = myproc();
+    struct proc *chd = 0;
+    int flag = 0;
+    for(struct proc *it = proc; it < &proc[NPROC];it++){
+        if(it->pid == pid){
+            chd = it;
+            break;
+        }
+    }
+    if(chd == 0){
+        return -1;
+    }
+    struct proc *temp = chd;
+    while(temp->pid != p->pid){
+        temp = temp->parent;
+        if(temp == 0){
+            flag = 1;
+            break;
+        }
+    }
+    if(flag){
+        return -1;
+    }
+    chd->usage.quota = quota;
+    return 0;
+}
