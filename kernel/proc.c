@@ -455,11 +455,13 @@ wait(uint64 addr)
 
 uint minimumUsage(){
     struct proc *p = proc;
+    uint pid = -1;
     uint min = -1;
     while(p < &proc[NPROC]){
         if(p->state == RUNNABLE && (p->usage.quota == 0 || p->usage.sum_of_ticks < p->usage.quota)){
             if(min == -1 || p->usage.sum_of_ticks < min){
                 min = p->usage.sum_of_ticks;
+                pid = p->pid;
             }
         }
         p++;
@@ -470,12 +472,13 @@ uint minimumUsage(){
             if(p->state == RUNNABLE){
                 if(min == -1 || p->usage.sum_of_ticks < min){
                     min = p->usage.sum_of_ticks;
+                    pid = p->pid;
                 }
             }
             p++;
         }
     }
-    return min;
+    return pid;
 }
 
 // Per-CPU process scheduler.
@@ -504,8 +507,8 @@ scheduler(void)
     int found = 0;
     for(p = proc; p < &proc[NPROC]; p++) {
       acquire(&p->lock);
-      uint min = minimumUsage();
-      if(p->state == RUNNABLE && p->usage.sum_of_ticks == min) {
+      uint pid = minimumUsage();
+      if(p->state == RUNNABLE && p->pid == pid) {
           // Switch to chosen process.  It is the process's job
           // to release its lock and then reacquire it
           // before jumping back to us.

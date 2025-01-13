@@ -21,6 +21,8 @@ int main() {
             }
             sleep(2);
         }
+    }else{
+        while (1);
     }
     sleep(2);
     if(highUse){
