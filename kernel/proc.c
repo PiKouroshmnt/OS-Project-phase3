@@ -1044,3 +1044,40 @@ int set_quota(int pid,int quota){
     chd->usage.quota = quota;
     return 0;
 }
+
+int sys_top(void) {
+  struct proc *p = myproc();
+  struct top *user_top;
+  if (argstr(0, (void*)&user_top, sizeof(*user_top)) < 0)
+      return -1;
+
+  acquire(&p->lock);
+  user_top->count = 0;
+
+  for (struct proc *p = proc; p < &proc[NPROC]; p++) {
+      if (p->state != UNUSED) {
+          struct proc_info *info = &user_top->processes[user_top->count];
+          safestrcpy(info->name, p->name, sizeof(p->name));
+          info->pid = p->pid;
+          info->ppid = (p->parent) ? p->parent->pid : -1;
+          info->state = p->state;
+          info->usage = p->usage;
+          user_top->count++;
+      }
+  }
+
+for (int i = 0; i < user_top->count - 1; i++) {
+    for (int j = 0; j < user_top->count - i - 1; j++) {
+        if (user_top->processes[j].usage.sum_of_ticks < user_top->processes[j + 1].usage.sum_of_ticks) {
+            struct proc_info temp = user_top->processes[j];
+            user_top->processes[j] = user_top->processes[j + 1];
+            user_top->processes[j + 1] = temp;
+        }
+    }
+}
+
+
+    release(&p->lock);
+
+    return 0;
+}
