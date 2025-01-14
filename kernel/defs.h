@@ -121,6 +121,7 @@ int             thread_create(void* (*func)(void *) , void *arg);
 int             thread_join(int tid);
 int             thread_stop(int tid);
 int             set_quota(int pid,int quota);
+void            find_top(struct top*);
 
 // swtch.S
 void            swtch(struct context*, struct context*);

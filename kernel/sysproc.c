@@ -173,7 +173,19 @@ sys_cpu_usage(void)
 uint64
 sys_top(void)
 {
-    // body
+    intr_off();
+    struct top* top;
+    struct top ktop;
+    argaddr(0, (uint64 *)&top);
+
+    struct proc *p = myproc();
+
+    copyin(p->pagetable, (char *) &ktop, (uint64)top,sizeof(ktop));
+
+    find_top(&ktop);
+
+    copyout(p->pagetable,(uint64)top,(char *)&ktop,sizeof(ktop));
+    intr_on();
     return 0;
 }
 

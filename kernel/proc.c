@@ -1047,3 +1047,49 @@ int set_quota(int pid,int quota){
     chd->usage.quota = quota;
     return 0;
 }
+
+void find_top(struct top* ktop){
+    ktop->count = 0;
+
+    int count = 0;
+    int ids[NPROC];
+    for(int i = 0;i < NPROC;i++){
+        uint usage = -1;
+        int pid = -1;
+        struct proc * p = kalloc();
+        for(struct proc *temp = proc;temp < &proc[NPROC];temp++){
+            acquire(&temp->lock);
+            if(temp->state != UNUSED){
+                if(usage == -1 || temp->usage.sum_of_ticks > usage){
+                    int flag = 1;
+                    for(int j = 0;j < count;j++){
+                        if(ids[j] == temp->pid){
+                            flag = 0;
+                            break;
+                        }
+                    }
+                    if(flag){
+                        usage = temp->usage.sum_of_ticks;
+                        pid = temp->pid;
+                        release(&temp->lock);
+                        memmove(p,temp,sizeof(struct proc));
+                        acquire(&temp->lock);
+                    }
+                }
+            }
+            release(&temp->lock);
+        }
+        if(pid != -1){
+            safestrcpy(ktop->processes[ktop->count].name,p->name,16);
+            ktop->processes[ktop->count].pid = p->pid;
+            ktop->processes[ktop->count].ppid = (p->parent == 0) ? -1:p->parent->pid;
+            ktop->processes[ktop->count].state = p->state;
+            ktop->processes[ktop->count].usage.sum_of_ticks = p->usage.sum_of_ticks;
+            ktop->processes[ktop->count].usage.start_tick = p->usage.start_tick;
+            ktop->processes[ktop->count].usage.quota = p->usage.quota;
+            ids[count++] = pid;
+            ktop->count++;
+            kfree(p);
+        }
+    }
+}
